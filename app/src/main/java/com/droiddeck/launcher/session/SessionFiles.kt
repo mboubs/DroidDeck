@@ -119,6 +119,7 @@ object SessionFiles {
             "usr/bin/steamos-polkit-helpers/steamos-select-branch" to "usr/bin/steamos-polkit-helpers/steamos-select-branch",
             "usr/bin/steamos-polkit-helpers/jupiter-biosupdate" to "usr/bin/steamos-polkit-helpers/jupiter-biosupdate",
             "usr/bin/steamos-polkit-helpers/jupiter-dock-updater" to "usr/bin/steamos-polkit-helpers/jupiter-dock-updater",
+            "usr/share/vulkan/implicit_layer.d/droiddeck_heap_cap.json" to "usr/share/vulkan/implicit_layer.d/droiddeck_heap_cap.json",
         )
         val mangoapp = listOf(
             "usr/local/bin/mangoapp",

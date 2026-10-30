@@ -351,6 +351,15 @@ class GameEnvironmentTest(unittest.TestCase):
                          "dxgi.maxDeviceMemory = 2048; dxvk.maxFrameRate = 60")
         for off in ({}, {"BL_VRAM_MB": "0"}, {"BL_VRAM_MB": "lots"}, {"BL_VRAM_MB": "²"}, {"BL_VRAM_MB": "-1"}):
             self.assertNotIn("DXVK_CONFIG", cap(off))
+            self.assertNotIn("DROIDDECK_VK_HEAP_CAP", cap(off))
+
+    def test_the_vram_cap_also_enables_the_vulkan_heap_cap_unless_the_game_sets_its_own(self):
+        cap = MODULE["vram_cap"]
+        env = cap({"BL_VRAM_MB": "2048"})
+        self.assertEqual((env["DROIDDECK_VK_HEAP_CAP"], env["DROIDDECK_VK_HEAP_CAP_MB"]), ("1", "2048"))
+        own = cap({"BL_VRAM_MB": "2048", "DROIDDECK_VK_HEAP_CAP_MB": "3072", "DROIDDECK_VK_HEAP_CAP_DISABLE": "1"})
+        self.assertEqual(own["DROIDDECK_VK_HEAP_CAP_MB"], "3072")
+        self.assertEqual(own["DROIDDECK_VK_HEAP_CAP_DISABLE"], "1")
 
     def test_a_games_wine_sync_choice_also_reaches_its_setup_runs(self):
         env = {"BL_SYNC": "1", "BL_SYNC_FALLBACK": "1", "BL_FSYNC_FIRST": "0", "OTHER": "kept"}

@@ -306,7 +306,9 @@ def game_gpu(env):
 
 
 def vram_cap(env):
-    """Puts the session's VRAM cap ahead of the game's own DXVK settings, so a game profile can still raise it."""
+    """Puts the session's VRAM cap ahead of the game's own DXVK settings, so a game profile can still raise it.
+
+    The same cap goes to the heap-cap Vulkan layer, which games that ask Vulkan directly (and DXVK's budget) see."""
     value = env.get("BL_VRAM_MB", "")
     if not re.fullmatch(r"[1-9][0-9]{0,6}", value):
         return env
@@ -314,6 +316,8 @@ def vram_cap(env):
     cap = "dxgi.maxDeviceMemory = %d" % int(value)
     own = result.get("DXVK_CONFIG", "").strip().strip(";").strip()
     result["DXVK_CONFIG"] = cap + "; " + own if own else cap
+    result.setdefault("DROIDDECK_VK_HEAP_CAP", "1")
+    result.setdefault("DROIDDECK_VK_HEAP_CAP_MB", str(int(value)))
     return result
 
 

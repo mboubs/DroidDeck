@@ -261,7 +261,7 @@ if (vitureSdkDir) {
 
 def stageSessionScripts = tasks.register('stageSessionScripts', Copy) {
     from(rootProject.file('tools/linuxfs/overlay')) {
-        include 'usr/local/bin/droiddeck-*', 'usr/local/bin/steam-compatibility', 'usr/bin/**'
+        include 'usr/local/bin/droiddeck-*', 'usr/local/bin/steam-compatibility', 'usr/bin/**', 'usr/share/vulkan/implicit_layer.d/droiddeck_*.json'
     }
     into(layout.projectDirectory.dir('src/main/assets/linuxfs'))
 }

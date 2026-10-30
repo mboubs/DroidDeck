@@ -1,0 +1,20 @@
+{
+    "file_format_version": "1.2.0",
+    "layer": {
+        "name": "VK_LAYER_DROIDDECK_heap_cap",
+        "type": "GLOBAL",
+        "library_path": "/usr/local/lib/libblsession.so",
+        "api_version": "1.3.0",
+        "implementation_version": "1",
+        "description": "Reports the session's VRAM cap as the GPU memory heap size and budget to games",
+        "functions": {
+            "vkNegotiateLoaderLayerInterfaceVersion": "DroidDeckHeapCap_NegotiateLoaderLayerInterfaceVersion"
+        },
+        "enable_environment": {
+            "DROIDDECK_VK_HEAP_CAP": "1"
+        },
+        "disable_environment": {
+            "DROIDDECK_VK_HEAP_CAP_DISABLE": "1"
+        }
+    }
+}
