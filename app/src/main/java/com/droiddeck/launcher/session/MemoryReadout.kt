@@ -11,18 +11,36 @@ import java.io.File
 import java.util.Locale
 
 internal object MemoryReadout {
-    data class Device(val totalKb: Long, val availableKb: Long, val swapTotalKb: Long, val swapFreeKb: Long) {
+    data class Device(
+        val totalKb: Long,
+        val availableKb: Long,
+        val swapTotalKb: Long,
+        val swapFreeKb: Long,
+        val freeKb: Long = 0,
+        val fileKb: Long = 0,
+        val shmemKb: Long = 0,
+        val unevictableKb: Long = 0,
+    ) {
         val usedKb get() = (totalKb - availableKb).coerceAtLeast(0)
         val swapUsedKb get() = (swapTotalKb - swapFreeKb).coerceAtLeast(0)
+        // lmkd's minfree mode counts free pages plus file pages minus shmem and unevictable ones; it ignores swap.
+        // KGSL's foreground GPU memory is shmem-backed and unevictable, so MemAvailable overstates the headroom.
+        val lmkdFreeKb get() = freeKb + (fileKb - shmemKb - unevictableKb).coerceAtLeast(0)
     }
 
-    data class Split(val gameKb: Long, val droiddeckKb: Long, val gpuKb: Long?)
+    data class Split(val gameKb: Long, val droiddeckKb: Long, val gpuKb: Long?, val gpuPeakKb: Long? = null)
 
     fun parseMeminfo(text: String): Device? {
         fun field(name: String) = Regex("""(?m)^$name:\s+(\d+) kB""").find(text)?.groupValues?.get(1)?.toLongOrNull()
         val total = field("MemTotal") ?: return null
         val available = field("MemAvailable") ?: return null
-        return Device(total, available, field("SwapTotal") ?: 0, field("SwapFree") ?: 0)
+        return Device(
+            total, available, field("SwapTotal") ?: 0, field("SwapFree") ?: 0,
+            freeKb = field("MemFree") ?: 0,
+            fileKb = (field("Cached") ?: 0) + (field("Buffers") ?: 0),
+            shmemKb = field("Shmem") ?: 0,
+            unevictableKb = field("Unevictable") ?: 0,
+        )
     }
 
     fun residentKb(status: String): Long {
@@ -73,7 +91,7 @@ internal object MemoryReadout {
             }
             children[pid]?.let(queue::addAll)
         }
-        return Split(game, droiddeck, gpuKb())
+        return Split(game, droiddeck, gpuKb("page_alloc"), gpuKb("page_alloc_max"))
     }
 
     private fun parentOf(pid: Int): Int? {
@@ -83,8 +101,8 @@ internal object MemoryReadout {
         return stat.substring(close + 2).split(' ').getOrNull(1)?.toIntOrNull()
     }
 
-    private fun gpuKb(): Long? = runCatching {
-        File("/sys/class/kgsl/kgsl/page_alloc").readText().trim().split(Regex("\\s+"))[0].toLong() / 1024
+    private fun gpuKb(name: String): Long? = runCatching {
+        File("/sys/class/kgsl/kgsl/$name").readText().trim().split(Regex("\\s+"))[0].toLong() / 1024
     }.getOrNull()
 }
 
@@ -97,7 +115,9 @@ object MemoryLog {
         "used ${device.usedKb / 1024}/${device.totalKb / 1024} MB, available ${device.availableKb / 1024} MB, " +
             "swap ${device.swapUsedKb / 1024}/${device.swapTotalKb / 1024} MB | game ${split.gameKb / 1024}, " +
             "droiddeck ${split.droiddeckKb / 1024}, android ${MemoryReadout.androidKb(device, split) / 1024}, " +
-            "gpu ${split.gpuKb?.div(1024) ?: "?"} MB"
+            "gpu ${split.gpuKb?.div(1024) ?: "?"} MB" + (split.gpuPeakKb?.let { " (peak ${it / 1024})" } ?: "") +
+            " | lmkd free ${device.lmkdFreeKb / 1024} MB: free ${device.freeKb / 1024}, file ${device.fileKb / 1024}, " +
+            "shmem ${device.shmemKb / 1024}, unevictable ${device.unevictableKb / 1024}"
 
     @Synchronized
     fun start() {

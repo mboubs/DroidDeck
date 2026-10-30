@@ -55,12 +55,36 @@ class MemoryReadoutTest {
     }
 
     @Test fun theLogLineSaysEveryPartInMegabytes() {
-        val device = MemoryReadout.Device(totalKb = 11_379_920, availableKb = 1_048_576, swapTotalKb = 16_777_212, swapFreeKb = 8_388_606)
-        val split = MemoryReadout.Split(gameKb = 2_097_152, droiddeckKb = 524_288, gpuKb = 3_145_728)
+        val device = MemoryReadout.Device(
+            totalKb = 11_379_920, availableKb = 1_048_576, swapTotalKb = 16_777_212, swapFreeKb = 8_388_606,
+            freeKb = 102_400, fileKb = 3_145_728, shmemKb = 1_048_576, unevictableKb = 1_572_864,
+        )
+        val split = MemoryReadout.Split(gameKb = 2_097_152, droiddeckKb = 524_288, gpuKb = 3_145_728, gpuPeakKb = 6_291_456)
         assertEquals(
-            "used 10089/11113 MB, available 1024 MB, swap 8191/16383 MB | game 2048, droiddeck 512, android 4457, gpu 3072 MB",
+            "used 10089/11113 MB, available 1024 MB, swap 8191/16383 MB | game 2048, droiddeck 512, android 4457, " +
+                "gpu 3072 MB (peak 6144) | lmkd free 612 MB: free 100, file 3072, shmem 1024, unevictable 1536",
             MemoryLog.line(device, split),
         )
-        assertTrue(MemoryLog.line(device, split.copy(gpuKb = null)).endsWith("gpu ? MB"))
+        assertTrue(MemoryLog.line(device, split.copy(gpuKb = null, gpuPeakKb = null)).contains("gpu ? MB | lmkd"))
+    }
+
+    @Test fun lmkdFreeLeavesOutPinnedSharedMemory() {
+        val pinned = MemoryReadout.parseMeminfo("""
+            MemTotal:       11379920 kB
+            MemFree:          113664 kB
+            MemAvailable:    3879731 kB
+            Buffers:           20480 kB
+            Cached:          6606028 kB
+            Shmem:           3565158 kB
+            Unevictable:     3670016 kB
+            SwapTotal:      23068672 kB
+            SwapFree:       17825792 kB
+        """.trimIndent())!!
+        assertEquals(113664L, pinned.lmkdFreeKb)
+        assertTrue(pinned.availableKb > 3_000_000)
+
+        val loose = pinned.copy(shmemKb = 0, unevictableKb = 0)
+        assertEquals(113664L + 6606028L + 20480L, loose.lmkdFreeKb)
+        assertEquals(527864L + 1024L, MemoryReadout.parseMeminfo(meminfo)!!.lmkdFreeKb)
     }
 }
