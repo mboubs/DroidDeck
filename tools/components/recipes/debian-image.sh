@@ -2,8 +2,17 @@
 set -euo pipefail
 . tools/linuxfs/debian-image.env
 image=public.ecr.aws/docker/library/debian:bullseye
-if gh release download "$DEBIAN_IMAGE_TAG" -R "$GITHUB_REPOSITORY" -p "$DEBIAN_IMAGE_ASSET" -O /tmp/debian-image.tar.zst \
-   && { [ -z "$DEBIAN_IMAGE_SHA256" ] || echo "$DEBIAN_IMAGE_SHA256  /tmp/debian-image.tar.zst" | sha256sum -c -; }; then
+hosted=0
+# A fork has no copy of the release, so Droid-Deck's own is tried before the registry.
+for repo in "$GITHUB_REPOSITORY" Droid-Deck/DroidDeck; do
+  rm -f /tmp/debian-image.tar.zst
+  if gh release download "$DEBIAN_IMAGE_TAG" -R "$repo" -p "$DEBIAN_IMAGE_ASSET" -O /tmp/debian-image.tar.zst \
+     && { [ -z "$DEBIAN_IMAGE_SHA256" ] || echo "$DEBIAN_IMAGE_SHA256  /tmp/debian-image.tar.zst" | sha256sum -c -; }; then
+    hosted=1
+    break
+  fi
+done
+if [ "$hosted" = 1 ]; then
   zstd -dc /tmp/debian-image.tar.zst | docker load
   rm -f /tmp/debian-image.tar.zst
 else
