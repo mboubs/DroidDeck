@@ -38,6 +38,16 @@ class SessionAssetsTest(unittest.TestCase):
             package.writestr(self.name, self.helper.read_bytes())
         self.assertEqual([], assets.check(self.apk, self.overlay))
 
+    def test_vulkan_layer_manifests_ship_like_the_helpers(self):
+        layer = self.overlay / 'usr/share/vulkan/implicit_layer.d/droiddeck_heap_cap.json'
+        layer.parent.mkdir(parents=True)
+        layer.write_bytes(b'{}')
+        name = 'assets/linuxfs/usr/share/vulkan/implicit_layer.d/droiddeck_heap_cap.json'
+        self.assertEqual(name, assets.source_assets(self.overlay)[layer])
+        with ZipFile(self.apk, 'w') as package:
+            package.writestr(self.name, self.helper.read_bytes())
+        self.assertEqual(['missing ' + name], assets.check(self.apk, self.overlay))
+
     def test_bundled_helper_must_also_be_extracted(self):
         self.assertEqual(['not extracted at session start: usr/local/bin/droiddeck-login1'],
                          assets.check_extraction(self.overlay, ''))
